@@ -2,24 +2,35 @@
 
 API REST desenvolvida na disciplina **Programação Web II** para praticar os conceitos fundamentais do NestJS: módulos, controllers, services, providers, decorators e injeção de dependência.
 
-Os dados ficam **em memória** (arrays dentro dos services). Não há banco de dados, então tudo volta ao estado inicial quando o servidor é reiniciado.
+- **Aula 1:** CRUD com dados em memória (alunos e professores).
+- **Aula 2:** persistência dos alunos em **MySQL**, usando `mysql2`, SQL parametrizado, connection pool, Repository e DatabaseService, sem ORM.
+
+O recurso **professores** continua em memória (os dados voltam ao estado inicial quando o servidor é reiniciado).
 
 ## Tecnologias
 
 - Node.js
 - NestJS
 - TypeScript
+- MySQL / MariaDB (XAMPP)
+- mysql2
+- @nestjs/config
 - npm / npx
 
 ## Conteúdos praticados
 
 - `@Module()`: organização da aplicação em módulos (`imports`, `controllers`, `providers`, `exports`)
 - `@Controller()`: definição de rotas
-- `@Injectable()`: services como providers
-- Injeção de dependência pelo construtor
+- `@Injectable()`: services e repositories como providers
+- Injeção de dependência pelo construtor, inclusive entre módulos
 - `@Get()`, `@Post()`, `@Put()`, `@Delete()`
 - `@Param()` com `ParseIntPipe` para parâmetros de rota
 - `@Body()` para leitura do corpo da requisição
+- `ConfigModule` / `ConfigService` e variáveis de ambiente (`.env`)
+- Connection pool com `mysql2/promise`
+- Queries parametrizadas (`?`) contra SQL Injection
+- `ResultSetHeader` (`insertId`, `affectedRows`) e `RowDataPacket`
+- Lifecycle hook `OnModuleDestroy` e `enableShutdownHooks()`
 
 ## Estrutura
 
@@ -28,10 +39,15 @@ src/
 ├── main.ts
 ├── app.module.ts
 │
+├── database/
+│   ├── database.module.ts
+│   └── database.service.ts
+│
 ├── alunos/
 │   ├── alunos.module.ts
 │   ├── alunos.controller.ts
-│   └── alunos.service.ts
+│   ├── alunos.service.ts
+│   └── alunos.repository.ts
 │
 └── professores/
     ├── professores.module.ts
@@ -42,8 +58,48 @@ src/
 ## Fluxo de uma requisição
 
 ```
-Cliente HTTP → Controller → Service → dados em memória
+Cliente → Controller → Service → Repository → DatabaseService → mysql2 → MySQL
 ```
+
+## Banco de dados
+
+Execute no MySQL:
+
+```sql
+CREATE DATABASE escola;
+
+USE escola;
+
+CREATE TABLE alunos (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nome VARCHAR(100) NOT NULL,
+    curso VARCHAR(100) NOT NULL
+);
+
+ALTER TABLE alunos
+ADD COLUMN email VARCHAR(150);
+
+INSERT INTO alunos (nome, email, curso)
+VALUES
+    ('Ana', 'ana@email.com', 'Sistemas de Informação'),
+    ('Carlos', 'carlos@email.com', 'Ciência da Computação');
+```
+
+## Variáveis de ambiente
+
+Crie um arquivo `.env` na raiz do projeto (ele não é versionado):
+
+```
+PORT=3000
+
+DB_HOST=localhost
+DB_PORT=3306
+DB_USER=root
+DB_PASSWORD=
+DB_NAME=escola
+```
+
+Preencha `DB_PASSWORD` com a senha do seu MySQL (no XAMPP, por padrão, fica vazia).
 
 ## Como executar
 
@@ -56,7 +112,7 @@ A API fica disponível em `http://localhost:3000`.
 
 ## Rotas
 
-### Alunos
+### Alunos (MySQL)
 
 | Método | Rota           | Descrição               |
 |--------|----------------|-------------------------|
@@ -71,11 +127,12 @@ Exemplo de body (POST/PUT):
 ```json
 {
   "nome": "Maria",
+  "email": "maria@email.com",
   "curso": "Engenharia de Software"
 }
 ```
 
-### Professores
+### Professores (em memória)
 
 | Método | Rota                | Descrição                  |
 |--------|---------------------|----------------------------|
