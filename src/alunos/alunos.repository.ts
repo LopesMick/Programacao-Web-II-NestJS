@@ -1,11 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 import { DatabaseService } from '../database/database.service.js';
+import { CreateAlunoDto } from './dto/create-aluno.dto.js';
+import { PatchAlunoDto } from './dto/patch-aluno.dto.js';
+import { UpdateAlunoDto } from './dto/update-aluno.dto.js';
 
 export interface AlunoRow extends RowDataPacket {
   id: number;
   nome: string;
-  email: string | null;
+  email: string;
   curso: string;
 }
 
@@ -34,7 +37,7 @@ export class AlunosRepository {
     return rows[0] ?? null;
   }
 
-  async create(nome: string, email: string, curso: string) {
+  async create(data: CreateAlunoDto) {
     const [result] = await this.databaseService.execute<ResultSetHeader>(
       `INSERT INTO alunos (
          nome,
@@ -42,37 +45,61 @@ export class AlunosRepository {
          curso
        )
        VALUES (?, ?, ?)`,
-      [nome, email, curso],
+      [data.nome, data.email, data.curso],
     );
 
-    return this.findById(result.insertId);
+    return result.insertId;
   }
 
-  async update(id: number, nome: string, email: string, curso: string) {
-    const [result] = await this.databaseService.execute<ResultSetHeader>(
+  async update(id: number, data: UpdateAlunoDto) {
+    await this.databaseService.execute<ResultSetHeader>(
       `UPDATE alunos
        SET
          nome = ?,
          email = ?,
          curso = ?
        WHERE id = ?`,
-      [nome, email, curso, id],
+      [data.nome, data.email, data.curso, id],
     );
+  }
 
-    if (result.affectedRows === 0) {
-      return null;
+  async patch(id: number, data: PatchAlunoDto) {
+    // Os nomes das colunas são fixos no código; só os valores vêm do cliente
+    const campos: string[] = [];
+    const valores: string[] = [];
+
+    if (data.nome !== undefined) {
+      campos.push('nome = ?');
+      valores.push(data.nome);
     }
 
-    return this.findById(id);
+    if (data.email !== undefined) {
+      campos.push('email = ?');
+      valores.push(data.email);
+    }
+
+    if (data.curso !== undefined) {
+      campos.push('curso = ?');
+      valores.push(data.curso);
+    }
+
+    if (campos.length === 0) {
+      return;
+    }
+
+    await this.databaseService.execute<ResultSetHeader>(
+      `UPDATE alunos
+       SET ${campos.join(', ')}
+       WHERE id = ?`,
+      [...valores, id],
+    );
   }
 
   async delete(id: number) {
-    const [result] = await this.databaseService.execute<ResultSetHeader>(
+    await this.databaseService.execute<ResultSetHeader>(
       `DELETE FROM alunos
        WHERE id = ?`,
       [id],
     );
-
-    return result.affectedRows > 0;
   }
 }

@@ -26,7 +26,7 @@ export class DatabaseService implements OnModuleDestroy {
 
   execute<T extends RowDataPacket[] | ResultSetHeader>(
     sql: string,
-    values: any[] = [],
+    values: (string | number | null)[] = [],
   ) {
     return this.pool.execute<T>(sql, values);
   }
