@@ -1,0 +1,39 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+model Aluno {
+  id    Int    @id @default(autoincrement())
+  nome  String @db.VarChar(100)
+  // Campo textual original, mantido para não quebrar o contrato da API
+  curso String @db.VarChar(100)
+  email String @unique @db.VarChar(150)
+
+  // Relacionamento N:1 com Curso (opcional enquanto o campo textual existir)
+  cursoId  Int?   @map("curso_id")
+  cursoRef Curso? @relation(fields: [cursoId], references: [id], onDelete: Restrict)
+
+  @@index([cursoId])
+  @@map("alunos")
+}
+
+model Curso {
+  id     Int     @id @default(autoincrement())
+  nome   String  @unique @db.VarChar(100)
+  alunos Aluno[]
+
+  @@map("cursos")
+}
+
+model Disciplina {
+  id           Int    @id @default(autoincrement())
+  nome         String @db.VarChar(100)
+  cargaHoraria Int    @map("carga_horaria")
+
+  @@map("disciplinas")
+}

@@ -1,69 +1,62 @@
 import { Injectable } from '@nestjs/common';
-import { ResultSetHeader, RowDataPacket } from 'mysql2/promise';
-import { DatabaseService } from '../database/database.service.js';
+import { Disciplina } from '../generated/prisma/client.js';
+import { PrismaService } from '../prisma/prisma.service.js';
 import { CreateDisciplinaDto } from './dto/create-disciplina.dto.js';
 import { UpdateDisciplinaDto } from './dto/update-disciplina.dto.js';
 
-export interface DisciplinaRow extends RowDataPacket {
-  id: number;
-  nome: string;
-  carga_horaria: number;
+// No Prisma o campo é cargaHoraria; a API continua respondendo carga_horaria
+function toResponse(disciplina: Disciplina) {
+  return {
+    id: disciplina.id,
+    nome: disciplina.nome,
+    carga_horaria: disciplina.cargaHoraria,
+  };
 }
 
 @Injectable()
 export class DisciplinasRepository {
-  constructor(private readonly databaseService: DatabaseService) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async findAll() {
-    const [rows] = await this.databaseService.execute<DisciplinaRow[]>(
-      `SELECT id, nome, carga_horaria
-       FROM disciplinas
-       ORDER BY id`,
-    );
+    const disciplinas = await this.prisma.disciplina.findMany({
+      orderBy: { id: 'asc' },
+    });
 
-    return rows;
+    return disciplinas.map(toResponse);
   }
 
   async findById(id: number) {
-    const [rows] = await this.databaseService.execute<DisciplinaRow[]>(
-      `SELECT id, nome, carga_horaria
-       FROM disciplinas
-       WHERE id = ?`,
-      [id],
-    );
+    const disciplina = await this.prisma.disciplina.findUnique({
+      where: { id },
+    });
 
-    return rows[0] ?? null;
+    return disciplina ? toResponse(disciplina) : null;
   }
 
   async create(data: CreateDisciplinaDto) {
-    const [result] = await this.databaseService.execute<ResultSetHeader>(
-      `INSERT INTO disciplinas (
-         nome,
-         carga_horaria
-       )
-       VALUES (?, ?)`,
-      [data.nome, data.carga_horaria],
-    );
+    const disciplina = await this.prisma.disciplina.create({
+      data: {
+        nome: data.nome,
+        cargaHoraria: data.carga_horaria,
+      },
+    });
 
-    return result.insertId;
+    return disciplina.id;
   }
 
   async update(id: number, data: UpdateDisciplinaDto) {
-    await this.databaseService.execute<ResultSetHeader>(
-      `UPDATE disciplinas
-       SET
-         nome = ?,
-         carga_horaria = ?
-       WHERE id = ?`,
-      [data.nome, data.carga_horaria, id],
-    );
+    await this.prisma.disciplina.update({
+      where: { id },
+      data: {
+        nome: data.nome,
+        cargaHoraria: data.carga_horaria,
+      },
+    });
   }
 
   async delete(id: number) {
-    await this.databaseService.execute<ResultSetHeader>(
-      `DELETE FROM disciplinas
-       WHERE id = ?`,
-      [id],
-    );
+    await this.prisma.disciplina.delete({
+      where: { id },
+    });
   }
 }
