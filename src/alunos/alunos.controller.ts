@@ -10,9 +10,11 @@ import {
   Patch,
   Post,
   Put,
+  Query,
 } from '@nestjs/common';
 import { AlunosService } from './alunos.service.js';
 import { CreateAlunoDto } from './dto/create-aluno.dto.js';
+import { ListAlunosQueryDto } from './dto/list-alunos-query.dto.js';
 import { PatchAlunoDto } from './dto/patch-aluno.dto.js';
 import { UpdateAlunoDto } from './dto/update-aluno.dto.js';
 
@@ -22,9 +24,10 @@ export class AlunosController {
     private readonly alunosService: AlunosService,
   ) {}
 
+  // Filtros e paginação opcionais: ?curso=ADS&nome=Ana&page=1&limit=10
   @Get()
-  findAll() {
-    return this.alunosService.findAll();
+  findAll(@Query() query: ListAlunosQueryDto) {
+    return this.alunosService.findAll(query);
   }
 
   @Get(':id')

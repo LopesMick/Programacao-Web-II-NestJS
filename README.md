@@ -1,219 +1,79 @@
-# Programação Web II — API REST com NestJS
+# Programação Web II — API NestJS
 
-API REST desenvolvida na disciplina **Programação Web II** para praticar os conceitos fundamentais do NestJS: módulos, controllers, services, providers, decorators, injeção de dependência, persistência e validação.
+API desenvolvida nas aulas de Programação Web II, com Controller, Service, Repository e Prisma ORM 7. Alunos e Disciplinas são persistidos no banco; Professores permanece em memória. Cursos demonstra o relacionamento com Alunos.
 
-- **Aula 1:** CRUD com dados em memória (alunos e professores).
-- **Aula 2:** persistência dos alunos em **MySQL**, usando `mysql2`, SQL parametrizado, connection pool, Repository e DatabaseService, sem ORM.
-- **Aula 3:** DTOs, validação com `class-validator` e `ValidationPipe`, tratamento de erros (`NotFoundException`), códigos HTTP adequados, `PATCH` com `PartialType` e o recurso **disciplinas**.
-
-O recurso **professores** continua em memória (os dados voltam ao estado inicial quando o servidor é reiniciado).
+Autor: Mickael Lopes de Souza.
 
 ## Tecnologias
 
-- Node.js
-- NestJS
-- TypeScript
-- MySQL / MariaDB (XAMPP)
-- mysql2
-- @nestjs/config
-- class-validator / class-transformer
-- @nestjs/mapped-types
-- npm / npx
+NestJS 12, TypeScript, Prisma ORM 7, MySQL/MariaDB, class-validator, class-transformer e Vitest. O projeto utiliza ESM.
 
-## Conteúdos praticados
+## Pré-requisitos
 
-- `@Module()`: organização da aplicação em módulos (`imports`, `controllers`, `providers`, `exports`)
-- `@Controller()`: definição de rotas
-- `@Injectable()`: services e repositories como providers
-- Injeção de dependência pelo construtor, inclusive entre módulos
-- `@Get()`, `@Post()`, `@Put()`, `@Patch()`, `@Delete()`
-- `@Param()` com `ParseIntPipe` para parâmetros de rota
-- `@Body()` com DTOs para leitura do corpo da requisição
-- `ConfigModule` / `ConfigService` e variáveis de ambiente (`.env`)
-- Connection pool com `mysql2/promise`
-- Queries parametrizadas (`?`) contra SQL Injection
-- `ResultSetHeader` (`insertId`, `affectedRows`) e `RowDataPacket`
-- Lifecycle hook `OnModuleDestroy` e `enableShutdownHooks()`
-- DTOs com `@IsString()`, `@IsNotEmpty()`, `@MaxLength()`, `@IsEmail()`, `@IsInt()`, `@Min()`
-- `ValidationPipe` global com `whitelist` e `transform`
-- `PartialType` para atualização parcial (`PATCH`)
-- `NotFoundException` / `BadRequestException` e status `200`, `201`, `204`, `400`, `404`
+- Node.js 24 e npm.
+- MySQL ou MariaDB em execução.
+- Banco `escola` e usuário com acesso a ele.
 
-## Estrutura
+## Configuração do ambiente
 
-```
-src/
-├── main.ts
-├── app.module.ts
-│
-├── database/
-│   ├── database.module.ts
-│   └── database.service.ts
-│
-├── alunos/
-│   ├── dto/
-│   │   ├── create-aluno.dto.ts
-│   │   ├── update-aluno.dto.ts
-│   │   └── patch-aluno.dto.ts
-│   ├── alunos.module.ts
-│   ├── alunos.controller.ts
-│   ├── alunos.service.ts
-│   └── alunos.repository.ts
-│
-├── disciplinas/
-│   ├── dto/
-│   │   ├── create-disciplina.dto.ts
-│   │   └── update-disciplina.dto.ts
-│   ├── disciplinas.module.ts
-│   ├── disciplinas.controller.ts
-│   ├── disciplinas.service.ts
-│   └── disciplinas.repository.ts
-│
-└── professores/
-    ├── professores.module.ts
-    ├── professores.controller.ts
-    └── professores.service.ts
-```
+Na pasta `meu-projeto`, copie `.env.example` para `.env` e preencha `DATABASE_URL` com os dados do seu banco. Preserve um `.env` que já exista.
 
-## Fluxo de uma requisição
-
-```
-Request → Pipes (ParseIntPipe / ValidationPipe) → DTO → Controller → Service → Repository → DatabaseService → MySQL
-```
-
-## Banco de dados
-
-Execute no MySQL:
-
-```sql
-CREATE DATABASE escola;
-
-USE escola;
-
-CREATE TABLE alunos (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    nome VARCHAR(100) NOT NULL,
-    curso VARCHAR(100) NOT NULL,
-    email VARCHAR(150) NOT NULL
-);
-
-CREATE TABLE disciplinas (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    nome VARCHAR(100) NOT NULL,
-    carga_horaria INT NOT NULL
-);
-
-INSERT INTO alunos (nome, email, curso)
-VALUES
-    ('Ana', 'ana@email.com', 'Sistemas de Informação'),
-    ('Carlos', 'carlos@email.com', 'Ciência da Computação');
-
-INSERT INTO disciplinas (nome, carga_horaria)
-VALUES
-    ('Programação Web II', 80),
-    ('Banco de Dados', 60);
-```
-
-## Variáveis de ambiente
-
-Crie um arquivo `.env` na raiz do projeto (ele não é versionado):
-
-```
+```dotenv
 PORT=3000
-
-DB_HOST=localhost
-DB_PORT=3306
-DB_USER=root
-DB_PASSWORD=
-DB_NAME=escola
+DATABASE_URL=mysql://usuario:senha@localhost:3306/escola
 ```
 
-Preencha `DB_PASSWORD` com a senha do seu MySQL (no XAMPP, por padrão, fica vazia).
+Caracteres especiais no usuário ou na senha precisam ser codificados na URL. A API e a CLI Prisma usam `DATABASE_URL`. As variáveis antigas `DB_*` são opcionais; se mantidas, devem corresponder à URL.
 
-## Como executar
+## Instalação e execução
 
 ```bash
-npm install
+npm ci
+npx prisma validate
+npx prisma migrate status
+```
+
+Em **banco novo e vazio**, aplique as migrations:
+
+```bash
+npx prisma migrate deploy
 npm run start:dev
 ```
 
-A API fica disponível em `http://localhost:3000`.
+Em **banco existente**, faça backup e confira o histórico antes de aplicar migrations. A baseline `0_init` só deve ser marcada com `npx prisma migrate resolve --applied 0_init` quando suas tabelas já existirem e ainda não houver histórico Prisma. Não use reset para adaptar o banco das aulas.
 
-## Rotas
+A migration `20261013190500_collation_general` precede o relacionamento para alinhar a collation das tabelas antes do backfill de Cursos. Migrations já aplicadas permanecem inalteradas.
 
-### Alunos (MySQL)
+Antes de converter um banco com outra collation, confira se há e-mails equivalentes em `utf8mb4_general_ci`; o índice único impede a conversão em caso de conflito. Não exclua registros para contornar esse erro.
 
-| Método | Rota           | Descrição                     | Sucesso | Erros    |
-|--------|----------------|-------------------------------|---------|----------|
-| GET    | `/alunos`      | Lista todos os alunos         | 200     | —        |
-| GET    | `/alunos/:id`  | Busca um aluno pelo id        | 200     | 400, 404 |
-| POST   | `/alunos`      | Cadastra um aluno             | 201     | 400      |
-| PUT    | `/alunos/:id`  | Atualiza todos os campos      | 200     | 400, 404 |
-| PATCH  | `/alunos/:id`  | Atualiza apenas os enviados   | 200     | 400, 404 |
-| DELETE | `/alunos/:id`  | Remove um aluno               | 204     | 400, 404 |
-
-Body do POST/PUT (todos obrigatórios):
-
-```json
-{
-  "nome": "Maria",
-  "email": "maria@email.com",
-  "curso": "Engenharia de Software"
-}
-```
-
-Body do PATCH (qualquer combinação dos campos):
-
-```json
-{
-  "curso": "Engenharia de Software"
-}
-```
-
-### Disciplinas (MySQL)
-
-| Método | Rota                | Descrição                   | Sucesso | Erros    |
-|--------|---------------------|-----------------------------|---------|----------|
-| GET    | `/disciplinas`      | Lista todas as disciplinas  | 200     | —        |
-| GET    | `/disciplinas/:id`  | Busca uma disciplina        | 200     | 400, 404 |
-| POST   | `/disciplinas`      | Cadastra uma disciplina     | 201     | 400      |
-| PUT    | `/disciplinas/:id`  | Atualiza uma disciplina     | 200     | 400, 404 |
-| DELETE | `/disciplinas/:id`  | Remove uma disciplina       | 204     | 400, 404 |
-
-Body do POST/PUT (`carga_horaria` deve ser inteiro maior que zero):
-
-```json
-{
-  "nome": "Programação Web II",
-  "carga_horaria": 80
-}
-```
-
-### Professores (em memória)
-
-| Método | Rota                | Descrição                  |
-|--------|---------------------|----------------------------|
-| GET    | `/professores`      | Lista todos os professores |
-| GET    | `/professores/:id`  | Busca um professor pelo id |
-| POST   | `/professores`      | Cadastra um professor      |
-| PUT    | `/professores/:id`  | Atualiza um professor      |
-| DELETE | `/professores/:id`  | Remove um professor        |
-
-Exemplo de body (POST/PUT):
-
-```json
-{
-  "nome": "Fernanda",
-  "disciplina": "Engenharia de Software"
-}
-```
-
-## Testes
+A API utiliza `http://localhost:3000`. Outros comandos:
 
 ```bash
+npm run typecheck
+npm run build
+npm run start:prod
+npm run lint
 npm test
+npm run test:e2e
+npx prisma db pull --print
+npm run prisma:studio
 ```
 
-## Autor
+`npm ci` gera o Prisma Client mesmo sem `.env`; a execução e os comandos de banco exigem `DATABASE_URL`. Se necessário, regenere o cliente com `npm run prisma:generate`.
 
-Mickael Lopes de Souza
+O E2E integra API e MariaDB/MySQL em bancos descartáveis `aula4_test_*`, verifica as migrations e remove esses bancos ao terminar. O usuário de teste precisa de permissão para criar e remover bancos. O banco original é consultado para verificar que seus dados não mudaram.
+
+## Rotas disponíveis
+
+| Recurso     | Rotas                                                                                                              |
+| ----------- | ------------------------------------------------------------------------------------------------------------------ |
+| Alunos      | `GET /alunos`, `GET /alunos/:id`, `POST /alunos`, `PUT /alunos/:id`, `PATCH /alunos/:id`, `DELETE /alunos/:id`     |
+| Disciplinas | `GET /disciplinas`, `GET /disciplinas/:id`, `POST /disciplinas`, `PUT /disciplinas/:id`, `DELETE /disciplinas/:id` |
+| Professores | `GET /professores`, `GET /professores/:id`, `POST /professores`, `PUT /professores/:id`, `DELETE /professores/:id` |
+| Cursos      | `GET /cursos`, `GET /cursos/:id`                                                                                   |
+
+Alunos recebe `nome`, `email` e `curso`. Disciplinas recebe `nome` e `carga_horaria` (inteiro positivo). Professores recebe `nome` e `disciplina`. PUT exige todos os campos; PATCH de Alunos exige ao menos um campo válido. Nomes e cursos são normalizados com `trim`.
+
+`GET /alunos` aceita `curso` (igualdade), `nome` (busca parcial), `page` (1 a 10000) e `limit` (1 a 100). Ao informar apenas um parâmetro de paginação, o outro assume `page=1` ou `limit=10`. Sem paginação, retorna todos os alunos em ordem de ID.
+
+Cursos é somente leitura; os cursos são criados ou associados no cadastro e na atualização de Alunos. O detalhe de um curso inclui seus alunos.

@@ -1,3 +1,4 @@
+import { executarOperacao } from '../prisma/prisma-errors.js';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { DisciplinasRepository } from './disciplinas.repository.js';
 import { CreateDisciplinaDto } from './dto/create-disciplina.dto.js';
@@ -5,22 +6,17 @@ import { UpdateDisciplinaDto } from './dto/update-disciplina.dto.js';
 
 @Injectable()
 export class DisciplinasService {
-  constructor(
-    private readonly disciplinasRepository: DisciplinasRepository,
-  ) {}
+  constructor(private readonly disciplinasRepository: DisciplinasRepository) {}
 
   findAll() {
     return this.disciplinasRepository.findAll();
   }
 
   async findById(id: number) {
-    const disciplina =
-      await this.disciplinasRepository.findById(id);
+    const disciplina = await this.disciplinasRepository.findById(id);
 
     if (!disciplina) {
-      throw new NotFoundException(
-        'Disciplina não encontrada',
-      );
+      throw new NotFoundException('Disciplina não encontrada');
     }
 
     return disciplina;
@@ -32,13 +28,13 @@ export class DisciplinasService {
     return this.findById(id);
   }
 
-  async update(
-    id: number,
-    data: UpdateDisciplinaDto,
-  ) {
+  async update(id: number, data: UpdateDisciplinaDto) {
     await this.findById(id);
 
-    await this.disciplinasRepository.update(id, data);
+    await executarOperacao(
+      this.disciplinasRepository.update(id, data),
+      'Disciplina não encontrada',
+    );
 
     return this.findById(id);
   }
@@ -46,6 +42,9 @@ export class DisciplinasService {
   async delete(id: number) {
     await this.findById(id);
 
-    await this.disciplinasRepository.delete(id);
+    await executarOperacao(
+      this.disciplinasRepository.delete(id),
+      'Disciplina não encontrada',
+    );
   }
 }
